@@ -149,7 +149,9 @@ func startConsume() {
 			}
 			go startConsume()
 			// 会重新创建新的消息管道替换掉旧的管道
+			sarama.Logger.Println("Info: retry to start consume")
 		}
+		sarama.Logger.Println("Debug: defer one finished")
 	}()
 
 	defer func() {
@@ -163,6 +165,7 @@ func startConsume() {
 			sarama.Logger.Println("Info: close msg chan")
 		}
 		close(data.closeChan)
+		sarama.Logger.Println("Debug: defer second finished")
 	}()
 
 	ctx, cancel := context.WithCancel(data.pCtx)

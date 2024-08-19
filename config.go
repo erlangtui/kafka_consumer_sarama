@@ -18,7 +18,7 @@ type Config struct {
 	Version           string    // 版本，格式 0.10.2.1，默认 0.10.2.1
 	Assignor          string    // 分区分配策略，range、roundrobin、sticky，默认是 sticky，均匀性好且 rebalance 后开销小
 	InitialOffset     string    // 如果之前未提交任何偏移量，则要使用的初始偏移量，newest 或 oldest，默认 newest
-	ReturnErrors      bool      // 是否返回错误
+	ReturnErrors      bool      // 是否返回错误，默认丢弃，如果开启后需要通过 Errors() 消费错误信息，避免管道阻塞
 	DisableAutoCommit bool      // 是否自动提交 offset，默认 false，即自动提交
 	CommitInterval    int       // 自动提交间隔，默认 1，单位 s
 	RefreshFrequency  int       // 元数据刷新时间间隔，默认 60，单位 s

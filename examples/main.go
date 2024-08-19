@@ -17,6 +17,7 @@ func main() {
 		Group:            "go_part_auto_discover_test1_sarama",
 		InitialOffset:    "oldest",
 		RefreshFrequency: 10,
+		ReturnErrors:     true,
 		LogOut:           os.Stdout,
 	}
 	err := kafka_consumer_sarama.Start(context.Background(), c)
@@ -27,6 +28,7 @@ func main() {
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
+	defer kafka_consumer_sarama.Close()
 	cnt := 0
 	for {
 		select {
@@ -38,14 +40,19 @@ func main() {
 			cnt++
 			log.Printf("topic: %s, group: %s, partition: %d, msg: %s", message.Topic, c.Group, message.Partition, string(message.Value))
 
+		case err, ok := <-kafka_consumer_sarama.Errors():
+			if !ok {
+				log.Println("err chan has closed")
+				return
+			}
+			log.Printf("err: %v\n", err)
+
 		case <-sigterm:
 			log.Println("terminated by signal")
-			kafka_consumer_sarama.Close()
 			return
 		}
 		if cnt > 100 {
 			log.Println("terminated by cnt")
-			kafka_consumer_sarama.Close()
 			return
 		}
 	}
