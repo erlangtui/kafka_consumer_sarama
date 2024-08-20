@@ -19,7 +19,7 @@ func main() {
 		RefreshFrequency: 10,
 		ReturnErrors:     true,
 		LogOut:           os.Stdout,
-		// Assignor:         "sticky",
+		Assignor:         "sticky",
 	}
 	err := kafka_consumer_sarama.Start(context.Background(), c)
 	if err != nil {
@@ -29,8 +29,11 @@ func main() {
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
-	defer kafka_consumer_sarama.Close()
-	cnt := 0
+	defer func() {
+		kafka_consumer_sarama.Close()
+		log.Println("main finished")
+	}()
+
 	for {
 		select {
 		case message, ok := <-kafka_consumer_sarama.Messages():
@@ -38,23 +41,22 @@ func main() {
 				log.Println("msg chan has closed")
 				return
 			}
-			cnt++
 			log.Printf("topic: %s, group: %s, partition: %d, msg: %s", message.Topic, c.Group, message.Partition, string(message.Value))
 
-		case err, ok := <-kafka_consumer_sarama.Errors():
-			if !ok {
-				log.Println("err chan has closed")
-				return
-			}
-			log.Printf("err: %v\n", err)
+		// case err, ok := <-kafka_consumer_sarama.Errors():
+		// 	if !ok {
+		// 		log.Println("err chan has closed")
+		// 		return
+		// 	}
+		// 	log.Printf("err: %v\n", err)
 
 		case <-sigterm:
 			log.Println("terminated by signal")
 			return
-		}
-		if cnt > 100 {
-			log.Println("terminated by cnt")
-			return
+
+			// default:
+			// 	time.Sleep(10 * time.Millisecond)
 		}
 	}
+
 }

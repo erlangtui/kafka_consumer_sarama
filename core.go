@@ -128,15 +128,15 @@ func startConsume() {
 		if err := recover(); err != nil {
 			sarama.Logger.Printf("Error: panic recover %v", err)
 		}
-		sarama.Logger.Println("Debug: defer first finished")
-	}()
-
-	defer func() {
 		// 保证消费者组和消息管道被关闭
 		if err := data.cg.Close(); err != nil {
 			sarama.Logger.Printf("Error: closing client: %v\n", err)
 		}
 
+		sarama.Logger.Println("Debug: defer first finished")
+	}()
+
+	defer func() {
 		close(data.msgChan)
 		sarama.Logger.Println("Info: close msg chan")
 		close(data.closeChan)
