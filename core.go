@@ -3,7 +3,6 @@ package kafka_consumer_sarama
 import (
 	"context"
 	"errors"
-	"io"
 	"log"
 	"sync"
 	"time"
@@ -30,7 +29,6 @@ func Errors() <-chan error {
 
 // Start 调用改函数后开始从kafka消费消息，调用方应该从 Messages 函数中获取消息
 func Start(pCtx context.Context, c *Config) error {
-	sarama.Logger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
 	if c == nil {
 		return errors.New("config is nil")
 	}
@@ -130,7 +128,7 @@ func startConsume() {
 		if err := recover(); err != nil {
 			sarama.Logger.Printf("Error: panic recover %v", err)
 		}
-		sarama.Logger.Println("Debug: defer one finished")
+		sarama.Logger.Println("Debug: defer first finished")
 	}()
 
 	defer func() {
@@ -160,12 +158,12 @@ func startConsume() {
 				select {
 				case cErr, ok := <-data.cg.Errors():
 					if !ok {
-						sarama.Logger.Println("Info: errors chan closeChan")
+						sarama.Logger.Println("Info: sarama errors chan channel was closeChan")
 						return
 					}
 					data.errChan <- cErr
 				case <-ctx.Done():
-					sarama.Logger.Println("Info: stop to consume error")
+					sarama.Logger.Println("Info: stop to consume sarama error")
 					return
 				}
 			}
@@ -189,7 +187,7 @@ func startConsume() {
 				}
 				time.Sleep(200 * time.Millisecond)
 			}
-			sarama.Logger.Println("data.cg.Consume returned succeed")
+			sarama.Logger.Println("Debug: data.cg.Consume returned succeed")
 			if ctx.Err() != nil {
 				sarama.Logger.Println("Info: cancel happened")
 				return
@@ -234,7 +232,7 @@ func (consumer *myConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, cl
 		select {
 		case message, ok := <-claim.Messages():
 			if !ok {
-				log.Printf("Info: message channel was closeChan")
+				log.Printf("Info: sarama message channel was closeChan")
 				return nil
 			}
 			data.msgChan <- message
