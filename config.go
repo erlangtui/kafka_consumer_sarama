@@ -22,7 +22,7 @@ type Config struct {
 	DisableAutoCommit bool      // 是否自动提交 offset，默认 false，即自动提交
 	CommitInterval    int       // 自动提交间隔，默认 1，单位 s
 	RefreshFrequency  int       // 元数据刷新时间间隔，默认 60，单位 s
-	MsgChanCap        int       // 消息管道的容量，默认 10000
+	MsgChanCap        int       // 消息管道的容量，缺省时默认 10000，0 值默认为缺省。如果调用方 panic 最多丢失 10000 条数据；如果不想丢失消息，建议设为 -1，创建阻塞管道
 	LogOut            io.Writer // 日志输出的地方，默认直接丢弃
 }
 

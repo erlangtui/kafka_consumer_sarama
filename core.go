@@ -105,6 +105,8 @@ func Start(pCtx context.Context, c *Config) error {
 
 	if c.MsgChanCap > 0 {
 		data.msgChanCap = c.MsgChanCap
+	} else if c.MsgChanCap < 0 {
+		data.msgChanCap = 0
 	}
 
 	if pCtx == nil {
@@ -116,19 +118,19 @@ func Start(pCtx context.Context, c *Config) error {
 	data.group = c.Group
 	data.pCtx = pCtx
 	data.cg = cg
+	data.msgChan = make(chan *sarama.ConsumerMessage, data.msgChanCap)
+	data.closeChan = make(chan bool)
 
 	go startConsume()
 	return nil
 }
 
 func startConsume() {
-	data.msgChan = make(chan *sarama.ConsumerMessage, data.msgChanCap)
-	data.closeChan = make(chan bool)
 	defer func() {
 		if err := recover(); err != nil {
 			sarama.Logger.Printf("Error: panic recover %v", err)
 		}
-		// 保证消费者组和消息管道被关闭
+		// 保证消费者组被关闭
 		if err := data.cg.Close(); err != nil {
 			sarama.Logger.Printf("Error: closing client: %v\n", err)
 		}
@@ -137,6 +139,7 @@ func startConsume() {
 	}()
 
 	defer func() {
+		// 保证消息管道被关闭
 		close(data.msgChan)
 		sarama.Logger.Println("Info: close msg chan")
 		close(data.closeChan)
