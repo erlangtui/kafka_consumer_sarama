@@ -3,7 +3,6 @@ package kafka_consumer_sarama
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"sync"
@@ -109,9 +108,6 @@ func Start(pCtx context.Context, c *Config) error {
 	if c.MsgChanCap > 0 {
 		data.msgChanCap = c.MsgChanCap
 	}
-	if c.retryConsume > 0 {
-		data.retryThreshold = c.retryConsume
-	}
 
 	if pCtx == nil {
 		pCtx = context.Background()
@@ -134,23 +130,6 @@ func startConsume() {
 		if err := recover(); err != nil {
 			sarama.Logger.Printf("Error: panic recover %v", err)
 		}
-
-		// data.retryCnt > 0 表示 data.cg.Consume(pCtx, data.topics, &consumer) 返回错误，尝试在此处重新构建消费者组消费，如果依然报错则 panic
-		if data.retryCnt > 0 && data.retryCnt <= data.retryThreshold {
-			cg, err := sarama.NewConsumerGroup(data.brokers, data.group, data.saramaCfg)
-			if err != nil {
-				// TODO to optimize
-				panic(fmt.Errorf("retryCnt to new consumer group failed, err: %v", err))
-			}
-			data.cg = cg
-			// 等待旧管道的数据被消费完毕，避免消息丢失
-			for len(data.msgChan) > 0 {
-				time.Sleep(10 * time.Millisecond)
-			}
-			go startConsume()
-			// 会重新创建新的消息管道替换掉旧的管道
-			sarama.Logger.Println("Info: retry to start consume")
-		}
 		sarama.Logger.Println("Debug: defer one finished")
 	}()
 
@@ -159,11 +138,9 @@ func startConsume() {
 		if err := data.cg.Close(); err != nil {
 			sarama.Logger.Printf("Error: closing client: %v\n", err)
 		}
-		if !(data.retryCnt > 0 && data.retryCnt <= data.retryThreshold) {
-			// 重试阶段不关闭消息管道，避免用户消费不到消息提前返回
-			close(data.msgChan)
-			sarama.Logger.Println("Info: close msg chan")
-		}
+
+		close(data.msgChan)
+		sarama.Logger.Println("Info: close msg chan")
 		close(data.closeChan)
 		sarama.Logger.Println("Debug: defer second finished")
 	}()
@@ -194,9 +171,7 @@ func startConsume() {
 			}
 		}()
 	}
-	consumer := consumer{
-		ready: make(chan bool),
-	}
+	consumer := myConsumer{}
 	wg.Add(1)
 	// 必须采用 for 循环，触发 rebalance 后能再次进行消费，消费者数量变化或是分区数量变化等
 	go func() {
@@ -205,11 +180,10 @@ func startConsume() {
 		for {
 			if err := data.cg.Consume(ctx, data.topics, &consumer); err != nil {
 				// 此处失败，日志不容易被用户感知
-				sarama.Logger.Printf("Error: consumer group to cunsume: %v\n", err)
+				sarama.Logger.Printf("Error: myConsumer group to cunsume: %v\n", err)
 				cnt++
 				if cnt == 3 {
-					// 失败后，重试 3 次，如果依然失败，尝试在 defer 中重新构建消费者组消费
-					data.retryCnt++
+					// 失败后，重试 3 次
 					cancel()
 					return
 				}
@@ -220,26 +194,17 @@ func startConsume() {
 				sarama.Logger.Println("Info: cancel happened")
 				return
 			}
-			consumer.ready = make(chan bool)
 			sarama.Logger.Println("Info: rebalance happened")
 		}
 	}()
 
-	<-consumer.ready // 阻塞等待，直到消费者组执行 Setup
-	sarama.Logger.Println("Info: Sarama consumer up and running!...")
-
-	// sigterm := make(chan os.Signal, 1)
-	// signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
-
+	sarama.Logger.Println("Info: Sarama myConsumer up and running!...")
 	keepRunning := true
 	for keepRunning {
 		select {
 		case <-ctx.Done():
 			sarama.Logger.Println("Info: terminated by context cancelled")
 			keepRunning = false
-			// case <-sigterm:
-			// 	sarama.Logger.Println("Info: terminated by via signal")
-			// 	keepRunning = false
 		}
 	}
 	cancel()
@@ -253,20 +218,18 @@ func Close() {
 	sarama.Logger.Println("Info: close finished")
 }
 
-type consumer struct {
-	ready chan bool
+type myConsumer struct {
 }
 
-func (consumer *consumer) Setup(sarama.ConsumerGroupSession) error {
-	close(consumer.ready)
+func (consumer *myConsumer) Setup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (consumer *consumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (consumer *myConsumer) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (consumer *myConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
 		case message, ok := <-claim.Messages():

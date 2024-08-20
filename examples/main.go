@@ -19,6 +19,7 @@ func main() {
 		RefreshFrequency: 10,
 		ReturnErrors:     true,
 		LogOut:           os.Stdout,
+		// Assignor:         "sticky",
 	}
 	err := kafka_consumer_sarama.Start(context.Background(), c)
 	if err != nil {

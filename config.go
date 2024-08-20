@@ -23,22 +23,19 @@ type Config struct {
 	CommitInterval    int       // 自动提交间隔，默认 1，单位 s
 	RefreshFrequency  int       // 元数据刷新时间间隔，默认 60，单位 s
 	MsgChanCap        int       // 消息管道的容量，默认 10000
-	retryConsume      int       // 再平衡发生错误时重试次数，默认 1 次
 	LogOut            io.Writer // 日志输出的地方，默认直接丢弃
 }
 
 type innerData struct {
-	saramaCfg      *sarama.Config
-	brokers        []string
-	topics         []string
-	group          string
-	pCtx           context.Context
-	cancel         context.CancelFunc
-	cg             sarama.ConsumerGroup
-	msgChan        chan *sarama.ConsumerMessage
-	errChan        chan error
-	closeChan      chan bool
-	msgChanCap     int
-	retryCnt       int // 重试次数
-	retryThreshold int // 重试阈值
+	saramaCfg  *sarama.Config
+	brokers    []string
+	topics     []string
+	group      string
+	pCtx       context.Context
+	cancel     context.CancelFunc
+	cg         sarama.ConsumerGroup
+	msgChan    chan *sarama.ConsumerMessage
+	errChan    chan error
+	closeChan  chan bool
+	msgChanCap int
 }
