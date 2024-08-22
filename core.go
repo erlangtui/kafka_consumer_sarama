@@ -240,6 +240,9 @@ func (consumer *myConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, cl
 			}
 			data.msgChan <- message
 			session.MarkMessage(message, "")
+			if !data.saramaCfg.Consumer.Offsets.AutoCommit.Enable {
+				session.Commit()
+			}
 		case <-session.Context().Done():
 			return nil
 		}

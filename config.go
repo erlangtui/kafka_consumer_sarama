@@ -16,11 +16,11 @@ type Config struct {
 	SASLUser          string    // SASL 用户
 	SASLPassword      string    // SASL 密码
 	Version           string    // 版本，格式 0.10.2.1，默认 0.10.2.1
-	Assignor          string    // 分区分配策略，range、roundrobin、sticky，默认是 sticky，均匀性好且 rebalance 后开销小
+	Assignor          string    // 分区分配策略，range、roundrobin、sticky，默认是 range，sticky 均匀性好且 rebalance 后开销小
 	InitialOffset     string    // 如果之前未提交任何偏移量，则要使用的初始偏移量，newest 或 oldest，默认 newest
 	ReturnErrors      bool      // 是否返回错误，默认丢弃，如果开启后需要通过 Errors() 消费错误信息，避免管道阻塞
-	DisableAutoCommit bool      // 是否自动提交 offset，默认 false，即自动提交
-	CommitInterval    int       // 自动提交间隔，默认 1，单位 s
+	DisableAutoCommit bool      // 是否自动提交 offset，默认 false，即自动提交；true，表示手动提交，即每次消费消息后同步提交消费位移，即保证了每次消费出来的消息位移被提交，不会重复消费
+	CommitInterval    int       // 自动提交间隔，默认 1，单位 s，服务 panic 时 1s 内的位移可能未被提交，可能会导致重复消费
 	RefreshFrequency  int       // 元数据刷新时间间隔，默认 60，单位 s
 	MsgChanCap        int       // 消息管道的容量，缺省时默认 10000，0 值默认为缺省。如果调用方 panic 最多丢失 10000 条数据；如果不想丢失消息，建议设为 -1，创建阻塞管道
 	LogOut            io.Writer // 日志输出的地方，默认直接丢弃
