@@ -1,8 +1,10 @@
 package kafka_consumer_sarama
 
 import (
-	"context"
+	"errors"
 	"io"
+	"log"
+	"time"
 
 	"github.com/Shopify/sarama"
 )
@@ -26,16 +28,75 @@ type Config struct {
 	LogOut            io.Writer // 日志输出的地方，默认直接丢弃
 }
 
-type innerData struct {
-	saramaCfg  *sarama.Config
-	brokers    []string
-	topics     []string
-	group      string
-	pCtx       context.Context
-	cancel     context.CancelFunc
-	cg         sarama.ConsumerGroup
-	msgChan    chan *sarama.ConsumerMessage
-	errChan    chan error
-	closeChan  chan bool
-	msgChanCap int
+func (c *Config) check() (*sarama.Config, error) {
+	if c == nil {
+		return nil, errors.New("config is nil")
+	}
+	if len(c.Topics) == 0 {
+		return nil, errors.New("config topic is empty")
+	}
+	if c.Group == "" {
+		return nil, errors.New("config group is empty")
+	}
+	if c.SASLEnable && c.SASLUser == "" {
+		return nil, errors.New("config sasl user is empty")
+	}
+	version := sarama.V0_10_2_1
+	if c.Version != "" {
+		var err error
+		version, err = sarama.ParseKafkaVersion(c.Version)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var assignor sarama.BalanceStrategy
+	switch c.Assignor {
+	case "sticky":
+		assignor = sarama.BalanceStrategySticky
+	case "roundrobin":
+		assignor = sarama.BalanceStrategyRoundRobin
+	case "range", "":
+		assignor = sarama.BalanceStrategyRange
+	default:
+		return nil, errors.New("config assignor unknown, should be one of range, roundrobin and sticky")
+	}
+
+	var initial int64
+	switch c.InitialOffset {
+	case "oldest":
+		initial = sarama.OffsetOldest
+	case "newest", "":
+		initial = sarama.OffsetNewest
+	default:
+		return nil, errors.New("config initial offset unknown, should be oldest or newest")
+	}
+
+	cfg := sarama.NewConfig()
+	cfg.Version = version
+	cfg.Consumer.Offsets.Initial = initial
+	cfg.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{assignor}
+	if c.SASLEnable {
+		cfg.Net.SASL.Enable = true
+		cfg.Net.SASL.User = c.SASLUser
+		cfg.Net.SASL.Password = c.SASLPassword
+	}
+	if c.RefreshFrequency > 0 {
+		cfg.Metadata.RefreshFrequency = time.Duration(c.RefreshFrequency) * time.Second
+	} else {
+		cfg.Metadata.RefreshFrequency = time.Minute
+	}
+	if c.DisableAutoCommit {
+		cfg.Consumer.Offsets.AutoCommit.Enable = false
+	}
+	if c.CommitInterval > 0 {
+		cfg.Consumer.Offsets.AutoCommit.Interval = time.Duration(c.CommitInterval) * time.Second
+	}
+	if c.ReturnErrors {
+		cfg.Consumer.Return.Errors = true
+	}
+	if c.LogOut != nil {
+		sarama.Logger = log.New(c.LogOut, "[Kafka Sarama] ", log.LstdFlags)
+	}
+	return cfg, nil
 }

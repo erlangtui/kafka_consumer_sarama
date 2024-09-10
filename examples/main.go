@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -22,29 +23,31 @@ func main() {
 		// Assignor:         "sticky",
 		// MsgChanCap:       -1,
 	}
-	err := kafka_consumer_sarama.Start(context.Background(), c)
+	cli, err := kafka_consumer_sarama.NewConsumer(context.Background(), c)
 	if err != nil {
 		log.Printf("Start error, err: %s\n", err.Error())
 		return
 	}
+	go cli.Start()
+
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
 	defer func() {
-		kafka_consumer_sarama.Close()
+		cli.Close()
 		log.Println("main finished")
 	}()
 
 	for {
 		select {
-		case message, ok := <-kafka_consumer_sarama.Messages():
+		case message, ok := <-cli.Messages():
 			if !ok {
 				log.Println("msg chan has closed")
 				return
 			}
 			log.Printf("topic: %s, group: %s, partition: %d, msg: %s", message.Topic, c.Group, message.Partition, string(message.Value))
 
-		case err, ok := <-kafka_consumer_sarama.Errors():
+		case err, ok := <-cli.Errors():
 			if !ok {
 				log.Println("err chan has closed")
 				return
@@ -55,6 +58,7 @@ func main() {
 			log.Println("terminated by signal")
 			return
 		}
+		fmt.Println(111)
 	}
 
 }
