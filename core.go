@@ -9,7 +9,7 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-func NewConsumer(pCtx context.Context, c *Config) (*MyConsumer, error) {
+func NewConsumer(pCtx context.Context, c *Config) (Consumer, error) {
 	cfg, err := c.check()
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func NewConsumer(pCtx context.Context, c *Config) (*MyConsumer, error) {
 		pCtx = context.Background()
 	}
 	ctx, cle := context.WithCancel(pCtx)
-	mCer := &MyConsumer{
+	mCer := &myConsumer{
 		saramaCfg: cfg,
 		brokers:   c.Brokers,
 		topics:    c.Topics,
@@ -47,7 +47,7 @@ func NewConsumer(pCtx context.Context, c *Config) (*MyConsumer, error) {
 }
 
 // Start 调用改函数后开始从kafka消费消息，调用方应该从 Messages 函数中获取消息
-func (c *MyConsumer) Start() {
+func (c *myConsumer) Start() {
 	defer func() {
 		if err := recover(); err != nil {
 			sarama.Logger.Printf("Error: panic recover %v", err)
@@ -92,7 +92,7 @@ func (c *MyConsumer) Start() {
 			}
 		}()
 	}
-	consumer := MyConsumer{}
+	consumer := myConsumer{}
 	wg.Add(1)
 	// 必须采用 for 循环，触发 rebalance 后能再次进行消费，消费者数量变化或是分区数量变化等
 	go func() {
@@ -101,7 +101,7 @@ func (c *MyConsumer) Start() {
 		for {
 			if err := c.cg.Consume(c.ctx, c.topics, &consumer); err != nil {
 				// 此处失败，日志不容易被用户感知
-				sarama.Logger.Printf("Error: MyConsumer group to cunsume: %v\n", err)
+				sarama.Logger.Printf("Error: myConsumer group to cunsume: %v\n", err)
 				cnt++
 				if cnt == 3 {
 					// 失败后，重试 3 次
@@ -119,7 +119,7 @@ func (c *MyConsumer) Start() {
 		}
 	}()
 
-	sarama.Logger.Println("Info: Sarama MyConsumer up and running!...")
+	sarama.Logger.Println("Info: Sarama myConsumer up and running!...")
 	keepRunning := true
 	for keepRunning {
 		select {
@@ -133,23 +133,33 @@ func (c *MyConsumer) Start() {
 }
 
 // Close 关闭消费者组和消息管道，释放资源，该函数应该被调用
-func (c *MyConsumer) Close() {
+func (c *myConsumer) Close() {
 	c.cancel()
 	<-c.closeChan
 	sarama.Logger.Println("Info: close finished")
 }
 
 // Messages 获取消息管道，调用法从其中获取消息
-func (c *MyConsumer) Messages() <-chan *sarama.ConsumerMessage {
+func (c *myConsumer) Messages() <-chan *sarama.ConsumerMessage {
 	return c.msgChan
 }
 
 // Errors 配置中开启了 ReturnErrors 后才会有消息，默认是直接写入 LogOut 配置中
-func (c *MyConsumer) Errors() <-chan error {
+func (c *myConsumer) Errors() <-chan error {
 	return c.errChan
 }
 
-type MyConsumer struct {
+type Consumer interface {
+	Start()
+	Close()
+	Messages() <-chan *sarama.ConsumerMessage
+	Errors() <-chan error
+	Setup(sarama.ConsumerGroupSession) error
+	Cleanup(sarama.ConsumerGroupSession) error
+	ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error
+}
+
+type myConsumer struct {
 	saramaCfg *sarama.Config
 	brokers   []string
 	topics    []string
@@ -162,15 +172,15 @@ type MyConsumer struct {
 	closeChan chan bool
 }
 
-func (c *MyConsumer) Setup(sarama.ConsumerGroupSession) error {
+func (c *myConsumer) Setup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (c *MyConsumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (c *myConsumer) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (c *MyConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (c *myConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
 		case message, ok := <-claim.Messages():
