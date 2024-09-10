@@ -19,9 +19,11 @@ func NewConsumer(pCtx context.Context, c *Config) (*MyConsumer, error) {
 		return nil, err
 	}
 
-	mCap := 0
+	mCap := 10000
 	if c.MsgChanCap > 0 {
 		mCap = c.MsgChanCap
+	} else if c.MsgChanCap < 0 {
+		mCap = 0
 	}
 
 	if pCtx == nil {

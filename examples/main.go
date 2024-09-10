@@ -20,6 +20,7 @@ func main() {
 		RefreshFrequency: 10,
 		ReturnErrors:     true,
 		LogOut:           os.Stdout,
+		Version:          "0.10.2.1",
 		// Assignor:         "sticky",
 		// MsgChanCap:       -1,
 	}
