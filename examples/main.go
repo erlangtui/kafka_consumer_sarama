@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -24,7 +23,7 @@ func main() {
 		// Assignor:         "sticky",
 		// MsgChanCap:       -1,
 	}
-	cli, err := kafka_consumer_sarama.NewConsumer(context.Background(), c)
+	cli, err := kafka_consumer_sarama.NewConsumer(c)
 	if err != nil {
 		log.Printf("Start error, err: %s\n", err.Error())
 		return

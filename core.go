@@ -9,7 +9,7 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-func NewConsumer(pCtx context.Context, c *Config) (Consumer, error) {
+func NewConsumer(c *Config) (Consumer, error) {
 	cfg, err := c.check()
 	if err != nil {
 		return nil, err
@@ -26,10 +26,10 @@ func NewConsumer(pCtx context.Context, c *Config) (Consumer, error) {
 		mCap = 0
 	}
 
-	if pCtx == nil {
-		pCtx = context.Background()
+	if c.PCtx == nil {
+		c.PCtx = context.Background()
 	}
-	ctx, cle := context.WithCancel(pCtx)
+	ctx, cle := context.WithCancel(c.PCtx)
 	mCer := &myConsumer{
 		saramaCfg: cfg,
 		brokers:   c.Brokers,
