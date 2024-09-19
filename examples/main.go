@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -13,8 +12,8 @@ import (
 func main() {
 	c := &kafka_consumer_sarama.Config{
 		Brokers:          []string{"10.182.29.28:19092", "10.182.29.28:29092", "10.182.29.28:39092"},
-		Topics:           []string{"go_part_auto_discover_test1"},
-		Group:            "go_part_auto_discover_test1_sarama",
+		Topics:           []string{"go_part_auto_discover_test8"},
+		Group:            "go_part_auto_discover_test1_sarama_2",
 		InitialOffset:    "oldest",
 		RefreshFrequency: 10,
 		ReturnErrors:     true,
@@ -58,7 +57,7 @@ func main() {
 			log.Println("terminated by signal")
 			return
 		}
-		fmt.Println(111)
+		// fmt.Println(111)
 	}
 
 }

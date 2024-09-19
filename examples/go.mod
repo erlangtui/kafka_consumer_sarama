@@ -2,7 +2,7 @@ module git.intra.weibo.com/adx/kafka_consumer_sarama/examples
 
 go 1.19
 
-require git.intra.weibo.com/adx/kafka_consumer_sarama v1.0.0
+require git.intra.weibo.com/adx/kafka_consumer_sarama v1.0.4
 
 require (
 	github.com/Shopify/sarama v1.38.1 // indirect

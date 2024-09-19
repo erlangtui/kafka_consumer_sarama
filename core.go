@@ -92,14 +92,13 @@ func (c *myConsumer) Start() {
 			}
 		}()
 	}
-	consumer := myConsumer{}
 	wg.Add(1)
 	// 必须采用 for 循环，触发 rebalance 后能再次进行消费，消费者数量变化或是分区数量变化等
 	go func() {
 		defer wg.Done()
 		var cnt int
 		for {
-			if err := c.cg.Consume(c.ctx, c.topics, &consumer); err != nil {
+			if err := c.cg.Consume(c.ctx, c.topics, c); err != nil {
 				// 此处失败，日志不容易被用户感知
 				sarama.Logger.Printf("Error: myConsumer group to cunsume: %v\n", err)
 				cnt++
