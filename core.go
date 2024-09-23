@@ -26,17 +26,11 @@ func NewConsumer(c *Config) (Consumer, error) {
 		mCap = 0
 	}
 
-	if c.PCtx == nil {
-		c.PCtx = context.Background()
-	}
-	ctx, cle := context.WithCancel(c.PCtx)
 	mCer := &myConsumer{
 		saramaCfg: cfg,
 		brokers:   c.Brokers,
 		topics:    c.Topics,
 		group:     c.Group,
-		ctx:       ctx,
-		cancel:    cle,
 		cg:        cg,
 		msgChan:   make(chan *sarama.ConsumerMessage, mCap),
 		errChan:   nil,
@@ -47,7 +41,12 @@ func NewConsumer(c *Config) (Consumer, error) {
 }
 
 // Start 调用改函数后开始从kafka消费消息，调用方应该从 Messages 函数中获取消息
-func (c *myConsumer) Start() {
+func (c *myConsumer) Start(pCtx context.Context) {
+	if pCtx == nil {
+		pCtx = context.Background()
+	}
+	c.ctx, c.cancel = context.WithCancel(pCtx)
+
 	defer func() {
 		if err := recover(); err != nil {
 			sarama.Logger.Printf("Error: panic recover %v", err)
@@ -149,7 +148,7 @@ func (c *myConsumer) Errors() <-chan error {
 }
 
 type Consumer interface {
-	Start()
+	Start(ctx context.Context)
 	Close()
 	Messages() <-chan *sarama.ConsumerMessage
 	Errors() <-chan error

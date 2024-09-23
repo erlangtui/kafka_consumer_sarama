@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -27,7 +28,8 @@ func main() {
 		log.Printf("Start error, err: %s\n", err.Error())
 		return
 	}
-	go cli.Start()
+	ctx, cancel := context.WithCancel(context.Background())
+	go cli.Start(ctx)
 
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
@@ -36,6 +38,8 @@ func main() {
 		cli.Close()
 		log.Println("main finished")
 	}()
+
+	defer cancel()
 
 	for {
 		select {
@@ -57,7 +61,6 @@ func main() {
 			log.Println("terminated by signal")
 			return
 		}
-		// fmt.Println(111)
 	}
 
 }
